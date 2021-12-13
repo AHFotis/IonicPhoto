@@ -1,3 +1,4 @@
+import { THIS_EXPR } from '@angular/compiler/src/output/output_ast';
 import { Injectable } from '@angular/core';
 import { Camera, CameraResultType, CameraSource, Photo } from '@capacitor/camera';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -8,6 +9,7 @@ import { Storage } from '@capacitor/storage';
 })
 export class PhotoService {
   public photos: UserPhoto[] = [];
+  private PHOTO_STORAGE: string = 'photos';
 
   constructor() { }
 
@@ -25,6 +27,11 @@ export class PhotoService {
     this.photos.unshift({
       filepath:"soon...",
       webviewPath: capturedPhoto.webPath
+    })
+
+    Storage.set({
+      key: this.PHOTO_STORAGE,
+      value: JSON.stringify(this.photos),
     })
   }
 
@@ -60,7 +67,25 @@ export class PhotoService {
     };
     reader.readAsDataURL(blob);
   })
+
+  public async loadSaved() {
+    // Retrieve cached photo array data
+    const photoList = await Storage.get({ key: this.PHOTO_STORAGE });
+    this.photos = JSON.parse(photoList.value) || [];
+  
+    for (let photo of this.photos) {
+      const readFile = await Filesystem.readFile({
+        path: photo.filepath,
+        directory: Directory.Data,
+      });
+
+      photo.webviewPath = `data:image/jpeg;base64,${readFile.data}`;
+    }
+  }
 }
+
+
+
 
 export interface UserPhoto {
   filepath: string;
