@@ -18,6 +18,25 @@ export class PhotoService {
     this.platform = platform;
    }
 
+   public async loadSaved() {
+    // Retrieve cached photo array data
+    const photoList = await Storage.get({ key: this.PHOTO_STORAGE });
+    this.photos = JSON.parse(photoList.value) || [];
+
+    if (!this.platform.is('hybrid')) {
+      for (let photo of this.photos) {
+        const readFile = await Filesystem.readFile({
+          path: photo.filepath,
+          directory: Directory.Data,
+        });
+  
+        photo.webviewPath = `data:image/jpeg;base64,${readFile.data}`;
+    }
+  
+    
+    }
+  }
+
   public async addNewToGallery(){
     //Take a photo
     const capturedPhoto = await Camera.getPhoto({
@@ -27,12 +46,13 @@ export class PhotoService {
     })
 
     const savedImageFile = await this.savePicture(capturedPhoto);
+    
     this.photos.unshift(savedImageFile);
 
-    this.photos.unshift({
-      filepath:"soon...",
-      webviewPath: capturedPhoto.webPath
-    })
+    // this.photos.unshift({
+    //   filepath:"soon...",
+    //   webviewPath: capturedPhoto.webPath
+    // })
 
     Storage.set({
       key: this.PHOTO_STORAGE,
@@ -92,24 +112,7 @@ export class PhotoService {
     reader.readAsDataURL(blob);
   })
 
-  public async loadSaved() {
-    // Retrieve cached photo array data
-    const photoList = await Storage.get({ key: this.PHOTO_STORAGE });
-    this.photos = JSON.parse(photoList.value) || [];
-
-    if (!this.platform.is('hybrid')) {
-      for (let photo of this.photos) {
-        const readFile = await Filesystem.readFile({
-          path: photo.filepath,
-          directory: Directory.Data,
-        });
   
-        photo.webviewPath = `data:image/jpeg;base64,${readFile.data}`;
-    }
-  
-    
-    }
-  }
 
   public async deletePicture(photo: UserPhoto, position: number) {
     // Remove this photo from the Photos reference data array
