@@ -716,6 +716,22 @@ let PhotoService = class PhotoService {
         });
         this.platform = platform;
     }
+    loadSaved() {
+        return (0,tslib__WEBPACK_IMPORTED_MODULE_4__.__awaiter)(this, void 0, void 0, function* () {
+            // Retrieve cached photo array data
+            const photoList = yield _capacitor_storage__WEBPACK_IMPORTED_MODULE_3__.Storage.get({ key: this.PHOTO_STORAGE });
+            this.photos = JSON.parse(photoList.value) || [];
+            if (!this.platform.is('hybrid')) {
+                for (let photo of this.photos) {
+                    const readFile = yield _capacitor_filesystem__WEBPACK_IMPORTED_MODULE_2__.Filesystem.readFile({
+                        path: photo.filepath,
+                        directory: _capacitor_filesystem__WEBPACK_IMPORTED_MODULE_2__.Directory.Data,
+                    });
+                    photo.webviewPath = `data:image/jpeg;base64,${readFile.data}`;
+                }
+            }
+        });
+    }
     addNewToGallery() {
         return (0,tslib__WEBPACK_IMPORTED_MODULE_4__.__awaiter)(this, void 0, void 0, function* () {
             //Take a photo
@@ -726,10 +742,10 @@ let PhotoService = class PhotoService {
             });
             const savedImageFile = yield this.savePicture(capturedPhoto);
             this.photos.unshift(savedImageFile);
-            this.photos.unshift({
-                filepath: "soon...",
-                webviewPath: capturedPhoto.webPath
-            });
+            // this.photos.unshift({
+            //   filepath:"soon...",
+            //   webviewPath: capturedPhoto.webPath
+            // })
             _capacitor_storage__WEBPACK_IMPORTED_MODULE_3__.Storage.set({
                 key: this.PHOTO_STORAGE,
                 value: JSON.stringify(this.photos),
@@ -776,20 +792,21 @@ let PhotoService = class PhotoService {
             }
         });
     }
-    loadSaved() {
+    deletePicture(photo, position) {
         return (0,tslib__WEBPACK_IMPORTED_MODULE_4__.__awaiter)(this, void 0, void 0, function* () {
-            // Retrieve cached photo array data
-            const photoList = yield _capacitor_storage__WEBPACK_IMPORTED_MODULE_3__.Storage.get({ key: this.PHOTO_STORAGE });
-            this.photos = JSON.parse(photoList.value) || [];
-            if (!this.platform.is('hybrid')) {
-                for (let photo of this.photos) {
-                    const readFile = yield _capacitor_filesystem__WEBPACK_IMPORTED_MODULE_2__.Filesystem.readFile({
-                        path: photo.filepath,
-                        directory: _capacitor_filesystem__WEBPACK_IMPORTED_MODULE_2__.Directory.Data,
-                    });
-                    photo.webviewPath = `data:image/jpeg;base64,${readFile.data}`;
-                }
-            }
+            // Remove this photo from the Photos reference data array
+            this.photos.splice(position, 1);
+            // Update photos array cache by overwriting the existing photo array
+            _capacitor_storage__WEBPACK_IMPORTED_MODULE_3__.Storage.set({
+                key: this.PHOTO_STORAGE,
+                value: JSON.stringify(this.photos)
+            });
+            // delete photo file from filesystem
+            const filename = photo.filepath.substr(photo.filepath.lastIndexOf('/') + 1);
+            yield _capacitor_filesystem__WEBPACK_IMPORTED_MODULE_2__.Filesystem.deleteFile({
+                path: filename,
+                directory: _capacitor_filesystem__WEBPACK_IMPORTED_MODULE_2__.Directory.Data
+            });
         });
     }
 };
@@ -904,16 +921,19 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var tslib__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! tslib */ 4762);
 /* harmony import */ var _raw_loader_tab2_page_html__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! !raw-loader!./tab2.page.html */ 2477);
 /* harmony import */ var _tab2_page_scss__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./tab2.page.scss */ 2055);
-/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @angular/core */ 7716);
+/* harmony import */ var _angular_core__WEBPACK_IMPORTED_MODULE_5__ = __webpack_require__(/*! @angular/core */ 7716);
 /* harmony import */ var _services_photo_service__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ../services/photo.service */ 1957);
+/* harmony import */ var _ionic_angular__WEBPACK_IMPORTED_MODULE_4__ = __webpack_require__(/*! @ionic/angular */ 476);
+
 
 
 
 
 
 let Tab2Page = class Tab2Page {
-    constructor(photoService) {
+    constructor(photoService, actionSheetController) {
         this.photoService = photoService;
+        this.actionSheetController = actionSheetController;
     }
     ngOnInit() {
         return (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__awaiter)(this, void 0, void 0, function* () {
@@ -923,12 +943,36 @@ let Tab2Page = class Tab2Page {
     addPhotoToGallery() {
         this.photoService.addNewToGallery();
     }
+    showActionSheet(photo, position) {
+        return (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__awaiter)(this, void 0, void 0, function* () {
+            const actionSheet = yield this.actionSheetController.create({
+                header: 'Photos',
+                buttons: [{
+                        text: 'Delete',
+                        role: 'destructive',
+                        icon: 'trash',
+                        handler: () => {
+                            this.photoService.deletePicture(photo, position);
+                        }
+                    }, {
+                        text: 'Cancel',
+                        icon: 'close',
+                        role: 'cancel',
+                        handler: () => {
+                            // Nothing to do, action sheet is automatically closed
+                        }
+                    }]
+            });
+            yield actionSheet.present();
+        });
+    }
 };
 Tab2Page.ctorParameters = () => [
-    { type: _services_photo_service__WEBPACK_IMPORTED_MODULE_2__.PhotoService }
+    { type: _services_photo_service__WEBPACK_IMPORTED_MODULE_2__.PhotoService },
+    { type: _ionic_angular__WEBPACK_IMPORTED_MODULE_4__.ActionSheetController }
 ];
 Tab2Page = (0,tslib__WEBPACK_IMPORTED_MODULE_3__.__decorate)([
-    (0,_angular_core__WEBPACK_IMPORTED_MODULE_4__.Component)({
+    (0,_angular_core__WEBPACK_IMPORTED_MODULE_5__.Component)({
         selector: 'app-tab2',
         template: _raw_loader_tab2_page_html__WEBPACK_IMPORTED_MODULE_0__.default,
         styles: [_tab2_page_scss__WEBPACK_IMPORTED_MODULE_1__.default]
@@ -965,7 +1009,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
-/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ("<ion-header [translucent]=\"true\">\n  <ion-toolbar>\n    <ion-title>\n      Photo Gallery\n    </ion-title>\n  </ion-toolbar>\n</ion-header>\n\n<ion-content [fullscreen]=\"true\">\n  <ion-header collapse=\"condense\">\n    <ion-toolbar>\n      <ion-title size=\"large\">Photo Gallery</ion-title>\n    </ion-toolbar>\n  </ion-header>\n\n \n    <ion-grid>\n        <ion-row>\n          <ion-col size=\"6\" *ngFor=\"let photo of photoService.photos; index as position\">\n            <ion-img [src]=\"photo.webviewPath\"></ion-img>\n          </ion-col>\n        </ion-row>\n    </ion-grid>\n \n    <ion-fab vertical=\"bottom\" horizontal=\"center\" slot=\"fixed\">\n      <ion-fab-button (click)=\"addPhotoToGallery()\">\n        <ion-icon name=\"camera\"></ion-icon>\n      </ion-fab-button>\n    </ion-fab>\n \n\n  <app-explore-container name=\"Tab 2 page\"></app-explore-container>\n</ion-content>\n");
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ("<ion-header [translucent]=\"true\">\n  <ion-toolbar>\n    <ion-title>\n      Photo Gallery\n    </ion-title>\n  </ion-toolbar>\n</ion-header>\n\n<ion-content [fullscreen]=\"true\">\n  <ion-header collapse=\"condense\">\n    <ion-toolbar>\n      <ion-title size=\"large\">Photo Gallery</ion-title>\n    </ion-toolbar>\n  </ion-header>\n\n \n    <ion-grid>\n        <ion-row>\n          <ion-col size=\"6\" *ngFor=\"let photo of photoService.photos; index as position\">\n            <ion-img [src]=\"photo.webviewPath\" (click)=\"showActionSheet(photo, position)\"></ion-img>\n          </ion-col>\n        </ion-row>\n    </ion-grid>\n \n    <ion-fab vertical=\"bottom\" horizontal=\"center\" slot=\"fixed\">\n      <ion-fab-button (click)=\"addPhotoToGallery()\">\n        <ion-icon name=\"camera\"></ion-icon>\n      </ion-fab-button>\n    </ion-fab>\n \n\n \n</ion-content>\n");
 
 /***/ })
 
